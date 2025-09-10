@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { Pencil, Trash2, Calendar, DollarSign } from "lucide-react"
+import { Pencil, Trash2, Calendar, DollarSign, FileDown } from "lucide-react" // Added FileDown icon
 import type { Expense, Category } from "@/lib/types"
 
 interface ExpensesListProps {
@@ -50,6 +50,7 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
   }, [refreshTrigger])
 
   const loadExpenses = async () => {
+    // ... (This function remains unchanged)
     try {
       const {
         data: { user },
@@ -77,6 +78,7 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
   }
 
   const loadCategories = async () => {
+    // ... (This function remains unchanged)
     try {
       const {
         data: { user },
@@ -93,6 +95,7 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
   }
 
   const handleEdit = (expense: Expense) => {
+    // ... (This function remains unchanged)
     setEditingExpense(expense)
     setEditForm({
       expense_name: expense.expense_name,
@@ -102,6 +105,7 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
   }
 
   const handleUpdate = async () => {
+    // ... (This function remains unchanged)
     if (!editingExpense) return
 
     setIsUpdating(true)
@@ -139,6 +143,7 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
   }
 
   const handleDelete = async (expenseId: string) => {
+    // ... (This function remains unchanged)
     try {
       const { error } = await supabase.from("expenses").delete().eq("id", expenseId)
 
@@ -162,14 +167,60 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
   }
 
   const getCategoryColor = (categoryName: string) => {
+    // ... (This function remains unchanged)
     const category = categories.find((cat) => cat.name === categoryName)
     return category?.color || "#6B7280"
   }
+
+  // --- New CSV Export Function (No external packages needed) ---
+  const exportToCSV = (data: Expense[], fileName: string) => {
+    if (!data.length) {
+      toast({
+        title: "No Data",
+        description: "There is no data to export.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const headers = ["Expense Name", "Amount", "Category", "Date"]
+
+    // Escape commas and quotes for CSV format
+    const sanitizeCell = (cellData: string) => `"${String(cellData).replace(/"/g, '""')}"`
+
+    const csvRows = [
+      headers.join(","), // Header row
+      ...data.map((item) =>
+        [
+          sanitizeCell(item.expense_name),
+          item.expense_amount, // Numbers don't need quotes
+          sanitizeCell(item.category),
+          new Date(item.created_at).toLocaleDateString(),
+        ].join(",")
+      ),
+    ]
+
+    const csvString = csvRows.join("\n")
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" })
+
+    // Create a temporary link element to trigger the download
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    link.setAttribute("href", url)
+    link.setAttribute("download", `${fileName}.csv`)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+  // ------------------------------------------------------------------
 
   const filteredExpenses =
     filterCategory === "all" ? expenses : expenses.filter((expense) => expense.category === filterCategory)
 
   if (isLoading) {
+    // ... (This section remains unchanged)
     return (
       <Card className="bg-gradient-to-br from-white to-orange-50/50 border-orange-200/50 shadow-lg">
         <CardHeader className="bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-t-lg">
@@ -195,15 +246,24 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
   return (
     <Card className="bg-gradient-to-br from-white to-orange-50/50 border-orange-200/50 shadow-lg">
       <CardHeader className="bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-t-lg">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <CardTitle>Recent Expenses</CardTitle>
           <div className="flex items-center gap-2">
-            <Label htmlFor="filter" className="text-sm text-orange-100">
-              Filter:
-            </Label>
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
+            {/* --- New Export Button for CSV --- */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-white/20 border-white/30 text-white hover:bg-white/30"
+              onClick={() => exportToCSV(filteredExpenses, "expenses")}
+              disabled={filteredExpenses.length === 0}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+            {/* --------------------------------- */}
+            <Select value={filterCategory} onValuechange={setFilterCategory}>
               <SelectTrigger className="w-40 bg-white/20 border-white/30 text-white">
-                <SelectValue />
+                <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
@@ -234,6 +294,7 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
             {filteredExpenses.map((expense) => (
               <div
                 key={expense.id}
+                // ... The rest of the mapping and dialogs remain unchanged
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 transition-all duration-200 shadow-sm hover:shadow-md"
               >
                 <div className="flex-1">
@@ -274,6 +335,7 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
                         <Pencil className="w-4 h-4" />
                       </Button>
                     </DialogTrigger>
+                    {/* ... Edit Dialog Content remains unchanged ... */}
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Edit Expense</DialogTitle>
@@ -316,7 +378,10 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
                               {categories.map((category) => (
                                 <SelectItem key={category.id} value={category.name}>
                                   <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
+                                    <div
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: category.color }}
+                                    />
                                     {category.name}
                                   </div>
                                 </SelectItem>
@@ -339,7 +404,6 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
                       </div>
                     </DialogContent>
                   </Dialog>
-
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
@@ -350,6 +414,7 @@ export function ExpensesList({ refreshTrigger, onExpenseUpdated }: ExpensesListP
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </AlertDialogTrigger>
+                    {/* ... Delete Alert Dialog Content remains unchanged ... */}
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Expense</AlertDialogTitle>
